@@ -25,7 +25,8 @@ from browser_use.llm.google.chat import ChatGoogle
 
 STORAGE_FILE = "linkedin_storage.json"
 MODEL        = "gemini-3-flash-preview"
-HEADLESS     = False
+# Set HEADLESS=false in .env to see the browser locally; VMs always run headless
+HEADLESS     = os.getenv("HEADLESS", "true").lower() != "false"
 
 
 def find_free_port() -> int:
@@ -126,12 +127,23 @@ async def get_mutual_connections(profile_url: str, save_path: Optional[str] = No
     # Playwright stays alive throughout so there's no CDP disconnect event that
     # would clear browser-use's SessionManager.
     pw = await async_playwright().start()
+    # --disable-dev-shm-usage is critical on Linux VMs — /dev/shm is often too
+    # small (64 MB) and Chromium crashes writing shared memory without this flag.
+    # --disable-gpu and --single-process help in containerised / no-display envs.
+    headless_args = [
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+        "--disable-setuid-sandbox",
+        "--single-process",
+    ] if HEADLESS else []
+
     browser = await pw.chromium.launch(
         headless=HEADLESS,
         args=[
             f"--remote-debugging-port={port}",
             "--disable-blink-features=AutomationControlled",
             "--no-sandbox",
+            *headless_args,
         ],
     )
 
@@ -140,13 +152,19 @@ async def get_mutual_connections(profile_url: str, save_path: Optional[str] = No
     # including new tabs created by browser-use via CDP.
     page = await browser.new_page()
     await page.set_viewport_size({"width": 1280, "height": 800})
-    await page.set_extra_http_headers({
-        "User-Agent": (
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/121.0.0.0 Safari/537.36"
-        )
-    })
+
+    # Use a Linux Chrome UA when running headless — macOS UA on a Linux server
+    # is a fingerprinting mismatch that can trigger LinkedIn's security checks.
+    user_agent = (
+        "Mozilla/5.0 (X11; Linux x86_64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/121.0.0.0 Safari/537.36"
+        if HEADLESS else
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/121.0.0.0 Safari/537.36"
+    )
+    await page.set_extra_http_headers({"User-Agent": user_agent})
 
     # Inject cookies into the default context (synchronous — no race condition).
     # Strip partitionKey if it's a dict — Playwright expects string or absent.
