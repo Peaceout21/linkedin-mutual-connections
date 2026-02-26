@@ -1,0 +1,9 @@
+venv/
+.env
+linkedin_cookies.json
+linkedin_storage.json
+results.json
+todo.md
+__pycache__/
+*.pyc
+.DS_Store
