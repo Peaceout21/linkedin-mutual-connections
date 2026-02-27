@@ -65,7 +65,11 @@ Step-by-step task:
 6. For every person in the list extract:
    - Full name
    - LinkedIn profile URL (the /in/username part)
-   - Current job title / headline
+   - Headline (the short bio text they set, e.g. "Partner @ Acme | Investor")
+   - Current company — look for a dedicated company line or badge on the card,
+     separate from the headline. If the headline itself contains "at CompanyName"
+     or "@ CompanyName", extract just the company name from it. If no company is
+     visible anywhere, use null.
    - Location (if visible)
 7. Return ONLY a valid JSON object in this exact format, nothing else:
 
@@ -78,7 +82,8 @@ Step-by-step task:
       "name": "Full Name",
       "linkedin_url": "https://www.linkedin.com/in/username",
       "linkedin_id": "username",
-      "title": "Their current role",
+      "title": "Their headline / bio text",
+      "company": "Current company name or null",
       "location": "City, Country or null"
     }}
   ]
