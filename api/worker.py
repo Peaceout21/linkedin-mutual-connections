@@ -31,6 +31,7 @@ async def run_worker() -> None:
     # Lazy imports so main.py can patch mutual_connections.STORAGE_FILE first.
     from mutual_connections import get_mutual_connections
     from company_people import get_company_people
+    from contact_info import get_contact_info
 
     while True:
         req = await job_queue.get()
@@ -39,8 +40,10 @@ async def run_worker() -> None:
 
             if req.job_type == "mutual_connections":
                 result = await get_mutual_connections(req.url, enrich=req.enrich)
-            else:
+            elif req.job_type == "company_people":
                 result = await get_company_people(req.url, max_steps=req.max_steps)
+            else:  # contact_info
+                result = await get_contact_info(req.url, max_steps=req.max_steps)
 
             # Write cache BEFORE updating job status — if the status write fails
             # transiently, the next POST /jobs for the same URL returns a cache

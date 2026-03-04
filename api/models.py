@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 
 class JobRequest(BaseModel):
-    job_type: Literal["mutual_connections", "company_people"]
+    job_type: Literal["mutual_connections", "company_people", "contact_info"]
     url: str
     enrich: bool = False
     max_steps: int = 80
