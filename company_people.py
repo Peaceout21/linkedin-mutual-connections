@@ -1,6 +1,6 @@
 """
 LinkedIn Company People Scraper
-Extracts 2nd-degree connections from a company's /people/ tab.
+Extracts visible connections (2nd-degree and public 3rd+) from a company's /people/ tab.
 
 Run: python company_people.py --url "https://www.linkedin.com/company/acme/" --save out.json
      python company_people.py --url "..." --save out.json --max-steps 120
@@ -40,7 +40,7 @@ def people_tab_url(company_url: str) -> str:
 def build_task(company_url: str) -> str:
     tab_url = people_tab_url(company_url)
     return f"""
-You are helping extract 2nd-degree connections from a LinkedIn company page.
+You are helping extract connections from a LinkedIn company page.
 The user is already logged into LinkedIn via session cookies.
 
 Step-by-step task:
@@ -49,16 +49,21 @@ Step-by-step task:
 2. Wait for the page to fully load. Note the company name shown on the page.
 3. Scroll slowly and repeatedly through the entire employee list.
    Stop only when no new employee cards appear after two consecutive scrolls.
-4. For EACH employee card, read the connection degree badge — it shows "1st", "2nd", or "3rd+".
-   Include ONLY cards with "2nd" degree badge. Skip all others.
-5. For each "2nd" degree employee extract:
+4. For EACH employee card that has a clickable LinkedIn profile link, record it —
+   regardless of the connection degree badge ("1st", "2nd", "3rd+", or no badge).
+   Some 3rd+ profiles are publicly visible because the person made their profile public;
+   include those too.
+   Skip only cards with NO visible name or NO profile link at all.
+5. For each employee card extract:
    - Full name
    - LinkedIn profile URL (the /in/username part from the card href)
    - Job title / headline
    - Location (if visible on the card)
+   - connection_degree: the badge text exactly as shown — "1st", "2nd", "3rd+",
+     or "unknown" if no badge is visible
 6. Count:
    - total_employees_visible: total cards seen (all degrees)
-   - second_degree_count: how many were "2nd"
+   - second_degree_count: how many had a "2nd" badge
 7. If the people tab is restricted or empty, return total_employees_visible: 0 and an empty people list.
 8. Return ONLY a valid JSON object in this exact format, nothing else:
 
@@ -94,10 +99,6 @@ def parse_output(raw: str, company_url: str) -> dict:
     seen = set()
     clean = []
     for p in data.get("people", []):
-        # Filter: only 2nd degree (guard against agent mistakes)
-        if "2nd" not in str(p.get("connection_degree", "2nd")):
-            continue
-
         # Normalise linkedin_url and extract linkedin_id
         url = p.get("linkedin_url", "")
         m = re.search(r"/in/([^/?#]+)", url)
@@ -105,14 +106,23 @@ def parse_output(raw: str, company_url: str) -> dict:
             p["linkedin_id"] = m.group(1)
             p["linkedin_url"] = f"https://www.linkedin.com/in/{m.group(1)}"
 
-        # Deduplicate by linkedin_id (fall back to name)
+        # Skip entries with no usable identifier (no link at all)
         uid = p.get("linkedin_id") or p.get("name")
         if not uid or uid in seen:
             continue
         seen.add(uid)
 
-        # Enforce fields
-        p["connection_degree"] = "2nd"
+        # Normalise degree label
+        raw_degree = str(p.get("connection_degree", "unknown")).strip()
+        if "1" in raw_degree:
+            p["connection_degree"] = "1st"
+        elif "2" in raw_degree:
+            p["connection_degree"] = "2nd"
+        elif "3" in raw_degree:
+            p["connection_degree"] = "3rd+"
+        else:
+            p["connection_degree"] = "unknown"
+
         p.setdefault("tags", [])
         p.setdefault("notes", "")
         p.setdefault("contacted", False)
@@ -120,13 +130,19 @@ def parse_output(raw: str, company_url: str) -> dict:
 
         clean.append(p)
 
+    # Degree breakdown (recomputed — never trust agent counts)
+    from collections import Counter
+    by_degree = dict(Counter(p["connection_degree"] for p in clean))
+
     meta = {
         "company_url": data.get("company_url", company_url.rstrip("/")),
         "company_name": data.get("company_name", ""),
         "people_tab_url": data.get("people_tab_url", people_tab_url(company_url)),
         "extracted_at": datetime.utcnow().isoformat() + "Z",
         "total_employees_visible": data.get("total_employees_visible", 0),
-        "second_degree_count": len(clean),  # recomputed — don't trust agent's count
+        "total_captured": len(clean),
+        "second_degree_count": by_degree.get("2nd", 0),
+        "by_degree": by_degree,
     }
 
     return {"meta": meta, "people": clean}
@@ -163,10 +179,13 @@ async def get_company_people(
     meta = data["meta"]
     print(f"\nCompany              : {meta.get('company_name', '?')}")
     print(f"Total visible        : {meta.get('total_employees_visible', '?')}")
-    print(f"2nd degree found     : {meta.get('second_degree_count', '?')}")
+    print(f"Total captured       : {meta.get('total_captured', '?')}")
+    for degree, count in sorted(meta.get("by_degree", {}).items()):
+        print(f"  {degree:<8}           : {count}")
 
     for i, person in enumerate(data["people"], 1):
-        print(f"  {i:3}. {person['name']:<35} {person.get('linkedin_url', '')}")
+        deg = person.get("connection_degree", "?")
+        print(f"  {i:3}. [{deg}] {person['name']:<32} {person.get('linkedin_url', '')}")
 
     if save_path:
         with open(save_path, "w") as f:
@@ -178,7 +197,7 @@ async def get_company_people(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Extract 2nd-degree connections from a LinkedIn company /people/ tab."
+        description="Extract visible connections (2nd + public 3rd+) from a LinkedIn company /people/ tab."
     )
     parser.add_argument("--url",       required=True,  help="LinkedIn company URL")
     parser.add_argument("--save",      default=None,   help="Save results to JSON file")
