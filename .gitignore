@@ -2,8 +2,11 @@ venv/
 .env
 linkedin_cookies.json
 linkedin_storage.json
+linkedin_storage.json.bak
 results.json
 todo.md
 __pycache__/
 *.pyc
 .DS_Store
+temp_data/
+*.json
