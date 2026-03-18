@@ -27,6 +27,15 @@
     <key>ThrottleInterval</key>
     <integer>10</integer>
 
+    <!-- Run at background priority — macOS will deprioritize CPU + I/O
+         so the worker never competes with foreground apps -->
+    <key>ProcessType</key>
+    <string>Background</string>
+
+    <!-- Nice value: 10 = lower CPU priority than normal processes (range 0-20) -->
+    <key>Nice</key>
+    <integer>10</integer>
+
     <!-- Log output -->
     <key>StandardOutPath</key>
     <string>/Users/arjun/Documents/frontier_ventures/linkedin_mutual/worker.log</string>

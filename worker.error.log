@@ -1,0 +1,16 @@
+INFO     [__main__] ============================================================
+INFO     [__main__] LinkedIn Worker starting
+INFO     [__main__]   Project      : chromatic-being-375320
+INFO     [__main__]   Subscription : projects/chromatic-being-375320/subscriptions/linkedin-jobs-local
+INFO     [__main__]   Max steps    : 60
+INFO     [__main__] ============================================================
+/Users/arjun/Documents/frontier_ventures/linkedin_mutual/venv/lib/python3.13/site-packages/google/cloud/firestore_v1/base_collection.py:316: UserWarning: Detected filter using positional arguments. Prefer using the 'filter' keyword argument instead.
+  return query.where(field_path, op_string, value)
+2026-03-18 16:47:08  INFO      ============================================================
+2026-03-18 16:47:08  INFO      LinkedIn Worker starting
+2026-03-18 16:47:08  INFO        Project      : chromatic-being-375320
+2026-03-18 16:47:08  INFO        Subscription : projects/chromatic-being-375320/subscriptions/linkedin-jobs-local
+2026-03-18 16:47:08  INFO        Max steps    : 60
+2026-03-18 16:47:08  INFO      ============================================================
+/Users/arjun/Documents/frontier_ventures/linkedin_mutual/venv/lib/python3.13/site-packages/google/cloud/firestore_v1/base_collection.py:316: UserWarning: Detected filter using positional arguments. Prefer using the 'filter' keyword argument instead.
+  return query.where(field_path, op_string, value)

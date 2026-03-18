@@ -15,6 +15,7 @@ load_dotenv()
 import asyncio
 import json
 import logging
+import os
 import threading
 import time
 from datetime import datetime, timezone
@@ -23,7 +24,20 @@ from google.cloud import firestore, pubsub_v1
 from google.api_core.exceptions import DeadlineExceeded
 
 from api.config import settings
-from mutual_connections import get_mutual_connections
+
+# Heavy scraper deps (browser_use, playwright, Gemini) are NOT imported here.
+# They are lazy-loaded the first time a job actually arrives, so the worker
+# sits at ~20MB RAM while idle instead of ~150MB.
+_get_mutual_connections = None
+
+def _load_scraper():
+    global _get_mutual_connections
+    if _get_mutual_connections is None:
+        log.info("Loading scraper (first job) ...")
+        from mutual_connections import get_mutual_connections
+        _get_mutual_connections = get_mutual_connections
+        log.info("Scraper loaded")
+    return _get_mutual_connections
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -95,7 +109,7 @@ async def _process(job_id: str, url: str, db: firestore.Client) -> None:
     log.info(f"Starting job {job_id}  url={url}")
     job_ref.update({"status": "running", "started_at": _now()})
 
-    result = await get_mutual_connections(url, max_steps=SCRAPE_MAX_STEPS)
+    result = await _load_scraper()(url, max_steps=SCRAPE_MAX_STEPS)
 
     # Write cache (90-day TTL)
     from datetime import timedelta
