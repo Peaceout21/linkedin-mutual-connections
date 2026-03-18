@@ -11,6 +11,7 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.41",
     "google-cloud-firestore>=2.19",
+    "google-cloud-pubsub>=2.0",
     "pydantic-settings>=2.0",
 ]
 

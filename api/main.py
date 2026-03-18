@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-# ── HEADLESS must be set before mutual_connections is imported ────────────────
 import os
-os.environ.setdefault("HEADLESS", "true")
+from dotenv import load_dotenv
+load_dotenv()  # must run before any other imports so env vars are available
 
-import asyncio
 import uuid
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -13,19 +12,13 @@ from fastapi import Depends, FastAPI, HTTPException, Security
 from fastapi import status as http_status
 from fastapi.security import APIKeyHeader
 
-# Patch STORAGE_FILE on the module before run_worker() imports the scraper.
-# Must happen here, at module level, before the lazy imports in worker.py fire.
-import mutual_connections as _mc
-
 from .config import settings
 from . import store
-from .worker import WorkerJob, job_queue, run_worker
+from .pubsub import publish_job
 from .models import JobRequest, JobResponse, JobStatus
 
-_mc.STORAGE_FILE = settings.storage_file
 
-
-# ── Authentication ────────────────────────────────────────────────────────────
+# ── Authentication ─────────────────────────────────────────────────────────────
 
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
@@ -39,23 +32,20 @@ async def require_api_key(key: Optional[str] = Security(_api_key_header)) -> str
     return key
 
 
-# ── Lifespan ──────────────────────────────────────────────────────────────────
+# ── Lifespan ───────────────────────────────────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     store.init_db(settings.gcp_project_id)
-    worker_task = asyncio.create_task(run_worker())
     yield
-    worker_task.cancel()
-    await asyncio.gather(worker_task, return_exceptions=True)
 
 
-# ── App ───────────────────────────────────────────────────────────────────────
+# ── App ────────────────────────────────────────────────────────────────────────
 
 app = FastAPI(title="LinkedIn Scraper API", lifespan=lifespan)
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+# ── Routes ─────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 async def health():
@@ -63,13 +53,10 @@ async def health():
 
 
 @app.post("/jobs", response_model=JobResponse, status_code=202)
-async def create_job(
-    req: JobRequest,
-    _: str = Depends(require_api_key),
-):
-    ttl_days = req.ttl_days if req.ttl_days is not None else settings.cache_ttl_days
+async def create_job(req: JobRequest, _: str = Depends(require_api_key)):
     ck = store.cache_key(req.url)
 
+    # Return cached result if within TTL
     if not req.force_refresh:
         cached = await store.get_cached(ck)
         if cached:
@@ -81,31 +68,10 @@ async def create_job(
             )
 
     job_id = str(uuid.uuid4())
-    await store.create_job(
-        job_id=job_id,
-        job_type=req.job_type,
-        url=req.url,
-        enrich=req.enrich,
-        max_steps=req.max_steps,
-        job_cache_key=ck,
-    )
-    await job_queue.put(
-        WorkerJob(
-            job_id=job_id,
-            job_type=req.job_type,
-            url=req.url,
-            enrich=req.enrich,
-            max_steps=req.max_steps,
-            ttl_days=ttl_days,
-            job_cache_key=ck,
-        )
-    )
-    return JobResponse(
-        job_id=job_id,
-        status="pending",
-        message="Job queued.",
-        result=None,
-    )
+    await store.create_job(job_id=job_id, url=req.url, job_cache_key=ck)
+    publish_job(settings.gcp_project_id, settings.pubsub_topic, job_id, req.url)
+
+    return JobResponse(job_id=job_id, status="pending", message="Job queued.")
 
 
 @app.get("/jobs/{job_id}", response_model=JobStatus)

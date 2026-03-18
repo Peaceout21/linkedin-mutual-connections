@@ -1,17 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel
 
 
 class JobRequest(BaseModel):
-    job_type: Literal["mutual_connections", "company_people", "contact_info"]
     url: str
-    enrich: bool = False
-    max_steps: int = 80
-    ttl_days: Optional[int] = None
     force_refresh: bool = False
 
 

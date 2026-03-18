@@ -185,40 +185,28 @@ async def _launch_browser(storage: dict):
         ],
     )
 
-    page = await browser.new_page()
-    await page.set_viewport_size({"width": 1280, "height": 800})
-
-    user_agent = (
-        "Mozilla/5.0 (X11; Linux x86_64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/121.0.0.0 Safari/537.36"
-        if HEADLESS else
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/121.0.0.0 Safari/537.36"
+    # Restore full storage state (cookies + localStorage) at context creation
+    # so LinkedIn auth tokens in localStorage are also present.
+    clean_storage = {
+        "cookies": [
+            {k: v for k, v in c.items() if k != "partitionKey" or isinstance(v, str)}
+            for c in storage.get("cookies", [])
+        ],
+        "origins": storage.get("origins", []),
+    }
+    context = await browser.new_context(
+        storage_state=clean_storage,
+        viewport={"width": 1280, "height": 800},
+        user_agent=(
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+            if HEADLESS else
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+        ),
     )
-    await page.set_extra_http_headers({"User-Agent": user_agent})
+    page = await context.new_page()
+    print(f"Injected {len(clean_storage['cookies'])} cookies + {len(clean_storage['origins'])} origins")
 
-    clean_cookies = [
-        {k: v for k, v in c.items() if k != "partitionKey" or isinstance(v, str)}
-        for c in storage["cookies"]
-    ]
-    await page.context.add_cookies(clean_cookies)
-    print(f"Injected {len(storage['cookies'])} cookies")
-
-    print("Verifying LinkedIn session...")
-    await page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=15000)
-    await asyncio.sleep(1)
-    current_url = page.url
-
-    if "login" in current_url or "authwall" in current_url or "checkpoint" in current_url:
-        await browser.close()
-        await pw.stop()
-        raise RuntimeError(
-            f"LinkedIn session check failed (at {current_url}).\n"
-            "Re-run: python save_cookies.py"
-        )
-    print(f"Session verified — at {current_url[:70]}")
+    print("Session cookies loaded — skipping pre-flight check (agent will detect auth issues)")
     return pw, browser, page, port
 
 
@@ -250,7 +238,16 @@ async def get_mutual_connections(profile_url: str, save_path: Optional[str] = No
         )
         print("Phase 1 — extracting mutual connections list...\n")
         result = await agent.run(max_steps=40)
-        raw = result.final_result() if hasattr(result, 'final_result') else str(result)
+        # Try final_result() first; fall back to scanning all action results for JSON
+        raw = result.final_result() if hasattr(result, 'final_result') else None
+        if not raw:
+            # Scan extracted_content from all steps for anything that looks like JSON
+            for action in reversed(result.all_results if hasattr(result, 'all_results') else []):
+                content = getattr(action, 'extracted_content', None) or ''
+                if '{' in content and 'mutual_connections' in content:
+                    raw = content
+                    break
+        raw = raw or str(result)
     finally:
         await browser.close()
         await pw.stop()
