@@ -14,3 +14,45 @@ INFO     [__main__] ============================================================
 2026-03-18 16:47:08  INFO      ============================================================
 /Users/arjun/Documents/frontier_ventures/linkedin_mutual/venv/lib/python3.13/site-packages/google/cloud/firestore_v1/base_collection.py:316: UserWarning: Detected filter using positional arguments. Prefer using the 'filter' keyword argument instead.
   return query.where(field_path, op_string, value)
+2026-03-18 16:52:35  INFO      Received job b7271305-25c1-4785-9844-9924928a73cc
+2026-03-18 16:52:37  INFO      Starting job b7271305-25c1-4785-9844-9924928a73cc  url=https://www.linkedin.com/in/gregghill17/
+2026-03-18 16:52:37  INFO      Loading scraper (first job) ...
+2026-03-18 16:52:39  INFO      Scraper loaded
+2026-03-18 16:52:39  ERROR     Job b7271305-25c1-4785-9844-9924928a73cc failed: get_mutual_connections() got an unexpected keyword argument 'max_steps'
+2026-03-18 16:52:39  INFO      Job b7271305-25c1-4785-9844-9924928a73cc nacked — will retry in ~60s
+2026-03-18 16:54:43  INFO      Received job b7271305-25c1-4785-9844-9924928a73cc
+2026-03-18 16:54:45  INFO      Starting job b7271305-25c1-4785-9844-9924928a73cc  url=https://www.linkedin.com/in/gregghill17/
+2026-03-18 16:54:45  ERROR     Job b7271305-25c1-4785-9844-9924928a73cc failed: get_mutual_connections() got an unexpected keyword argument 'max_steps'
+2026-03-18 16:54:47  INFO      Job b7271305-25c1-4785-9844-9924928a73cc nacked — will retry in ~60s
+2026-03-18 16:56:49  INFO      Received job b7271305-25c1-4785-9844-9924928a73cc
+2026-03-18 16:56:50  INFO      Starting job b7271305-25c1-4785-9844-9924928a73cc  url=https://www.linkedin.com/in/gregghill17/
+2026-03-18 16:56:51  ERROR     Job b7271305-25c1-4785-9844-9924928a73cc failed: get_mutual_connections() got an unexpected keyword argument 'max_steps'
+2026-03-18 16:56:51  INFO      Job b7271305-25c1-4785-9844-9924928a73cc nacked — will retry in ~60s
+2026-03-18 16:58:55  INFO      Received job b7271305-25c1-4785-9844-9924928a73cc
+2026-03-18 16:58:55  INFO      Starting job b7271305-25c1-4785-9844-9924928a73cc  url=https://www.linkedin.com/in/gregghill17/
+2026-03-18 16:58:55  ERROR     Job b7271305-25c1-4785-9844-9924928a73cc failed: get_mutual_connections() got an unexpected keyword argument 'max_steps'
+2026-03-18 16:58:57  INFO      Job b7271305-25c1-4785-9844-9924928a73cc nacked — will retry in ~60s
+2026-03-18 17:01:00  INFO      Received job b7271305-25c1-4785-9844-9924928a73cc
+2026-03-18 17:01:00  INFO      Starting job b7271305-25c1-4785-9844-9924928a73cc  url=https://www.linkedin.com/in/gregghill17/
+2026-03-18 17:01:01  ERROR     Job b7271305-25c1-4785-9844-9924928a73cc failed: get_mutual_connections() got an unexpected keyword argument 'max_steps'
+2026-03-18 17:01:02  INFO      Job b7271305-25c1-4785-9844-9924928a73cc nacked — will retry in ~60s
+2026-03-18 17:03:05  INFO      Received job b7271305-25c1-4785-9844-9924928a73cc
+2026-03-18 17:03:05  INFO      Starting job b7271305-25c1-4785-9844-9924928a73cc  url=https://www.linkedin.com/in/gregghill17/
+2026-03-18 17:03:07  ERROR     Job b7271305-25c1-4785-9844-9924928a73cc failed: get_mutual_connections() got an unexpected keyword argument 'max_steps'
+2026-03-18 17:03:07  INFO      Job b7271305-25c1-4785-9844-9924928a73cc nacked — will retry in ~60s
+2026-03-18 17:05:10  INFO      Received job b7271305-25c1-4785-9844-9924928a73cc
+2026-03-18 17:05:10  INFO      Starting job b7271305-25c1-4785-9844-9924928a73cc  url=https://www.linkedin.com/in/gregghill17/
+2026-03-18 17:05:12  ERROR     Job b7271305-25c1-4785-9844-9924928a73cc failed: get_mutual_connections() got an unexpected keyword argument 'max_steps'
+2026-03-18 17:05:12  INFO      Job b7271305-25c1-4785-9844-9924928a73cc nacked — will retry in ~60s
+2026-03-18 17:07:16  INFO      Received job b7271305-25c1-4785-9844-9924928a73cc
+2026-03-18 17:07:17  INFO      Starting job b7271305-25c1-4785-9844-9924928a73cc  url=https://www.linkedin.com/in/gregghill17/
+2026-03-18 17:07:18  ERROR     Job b7271305-25c1-4785-9844-9924928a73cc failed: get_mutual_connections() got an unexpected keyword argument 'max_steps'
+2026-03-18 17:07:18  INFO      Job b7271305-25c1-4785-9844-9924928a73cc nacked — will retry in ~60s
+2026-03-18 17:09:21  INFO      Received job b7271305-25c1-4785-9844-9924928a73cc
+2026-03-18 17:09:22  INFO      Starting job b7271305-25c1-4785-9844-9924928a73cc  url=https://www.linkedin.com/in/gregghill17/
+2026-03-18 17:09:23  ERROR     Job b7271305-25c1-4785-9844-9924928a73cc failed: get_mutual_connections() got an unexpected keyword argument 'max_steps'
+2026-03-18 17:09:23  INFO      Job b7271305-25c1-4785-9844-9924928a73cc nacked — will retry in ~60s
+2026-03-18 17:11:27  INFO      Received job b7271305-25c1-4785-9844-9924928a73cc
+2026-03-18 17:11:27  INFO      Starting job b7271305-25c1-4785-9844-9924928a73cc  url=https://www.linkedin.com/in/gregghill17/
+2026-03-18 17:11:28  ERROR     Job b7271305-25c1-4785-9844-9924928a73cc failed: get_mutual_connections() got an unexpected keyword argument 'max_steps'
+2026-03-18 17:11:29  INFO      Job b7271305-25c1-4785-9844-9924928a73cc nacked — will retry in ~60s

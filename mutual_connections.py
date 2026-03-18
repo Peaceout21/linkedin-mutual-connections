@@ -220,7 +220,7 @@ def validate_linkedin_url(url: str) -> None:
 
 
 async def get_mutual_connections(profile_url: str, save_path: Optional[str] = None,
-                                  enrich: bool = False) -> dict:
+                                  enrich: bool = False, max_steps: int = 40) -> dict:
     validate_linkedin_url(profile_url)
     print(f"\nTarget : {profile_url}")
     storage = load_storage()
@@ -237,7 +237,7 @@ async def get_mutual_connections(profile_url: str, save_path: Optional[str] = No
             max_actions_per_step=15,
         )
         print("Phase 1 — extracting mutual connections list...\n")
-        result = await agent.run(max_steps=40)
+        result = await agent.run(max_steps=max_steps)
         # Try final_result() first; fall back to scanning all action results for JSON
         raw = result.final_result() if hasattr(result, 'final_result') else None
         if not raw:
