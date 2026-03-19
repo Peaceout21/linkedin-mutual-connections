@@ -28,16 +28,19 @@ from api.config import settings
 # Heavy scraper deps (browser_use, playwright, Gemini) are NOT imported here.
 # They are lazy-loaded the first time a job actually arrives, so the worker
 # sits at ~20MB RAM while idle instead of ~150MB.
-_get_mutual_connections = None
+_scrapers: dict = {}
 
-def _load_scraper():
-    global _get_mutual_connections
-    if _get_mutual_connections is None:
-        log.info("Loading scraper (first job) ...")
-        from mutual_connections import get_mutual_connections
-        _get_mutual_connections = get_mutual_connections
+def _load_scraper(job_type: str):
+    if job_type not in _scrapers:
+        log.info(f"Loading scraper for job_type={job_type} (first job) ...")
+        if job_type == "company_people":
+            from company_people import get_company_people
+            _scrapers[job_type] = get_company_people
+        else:
+            from mutual_connections import get_mutual_connections
+            _scrapers[job_type] = get_mutual_connections
         log.info("Scraper loaded")
-    return _get_mutual_connections
+    return _scrapers[job_type]
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -97,7 +100,7 @@ def _extend_ack_loop(
 
 # ── Job processor ─────────────────────────────────────────────────────────────
 
-async def _process(job_id: str, url: str, db: firestore.Client) -> None:
+async def _process(job_id: str, url: str, job_type: str, db: firestore.Client) -> None:
     job_ref = db.collection(settings.jobs_collection).document(job_id)
 
     # Guard: skip if already completed (duplicate delivery)
@@ -106,10 +109,13 @@ async def _process(job_id: str, url: str, db: firestore.Client) -> None:
         log.info(f"Job {job_id} already completed — skipping duplicate delivery")
         return
 
-    log.info(f"Starting job {job_id}  url={url}")
+    log.info(f"Starting job {job_id}  type={job_type}  url={url}")
     job_ref.update({"status": "running", "started_at": _now()})
 
-    result = await _load_scraper()(url, max_steps=SCRAPE_MAX_STEPS)
+    scraper = _load_scraper(job_type)
+    # company_people scraper needs more steps (more employees to scroll through)
+    max_steps = SCRAPE_MAX_STEPS if job_type == "mutual_connections" else max(SCRAPE_MAX_STEPS, 80)
+    result = await scraper(url, max_steps=max_steps)
 
     # Write cache (90-day TTL)
     from datetime import timedelta
@@ -118,7 +124,7 @@ async def _process(job_id: str, url: str, db: firestore.Client) -> None:
         db.collection(settings.cache_collection).document(cache_key).set({
             "cache_key": cache_key,
             "url": url,
-            "job_type": "mutual_connections",
+            "job_type": job_type,
             "result": result,
             "created_at": _now(),
             "expires_at": _now() + timedelta(days=settings.cache_ttl_days),
@@ -183,7 +189,8 @@ def run() -> None:
 
         job_id = data.get("job_id", "unknown")
         url = data.get("url", "")
-        log.info(f"Received job {job_id}")
+        job_type = data.get("job_type", "mutual_connections")
+        log.info(f"Received job {job_id}  type={job_type}")
 
         # Start background thread to keep ack alive during scraping
         stop_event = threading.Event()
@@ -196,7 +203,7 @@ def run() -> None:
 
         success = False
         try:
-            asyncio.run(_process(job_id, url, db))
+            asyncio.run(_process(job_id, url, job_type, db))
             success = True
         except Exception as e:
             log.error(f"Job {job_id} failed: {e}")

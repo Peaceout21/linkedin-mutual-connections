@@ -46,25 +46,25 @@ async def get_cached(key: str) -> Optional[dict[str, Any]]:
     return data
 
 
-async def write_cache(key: str, url: str, result: dict[str, Any], ttl_days: int) -> None:
+async def write_cache(key: str, url: str, result: dict[str, Any], ttl_days: int, job_type: str = "mutual_connections") -> None:
     db = _get_db()
     now = datetime.now(timezone.utc)
     await db.collection(settings.cache_collection).document(key).set({
         "cache_key": key,
         "url": url,
-        "job_type": "mutual_connections",
+        "job_type": job_type,
         "result": result,
         "created_at": now,
         "expires_at": now + timedelta(days=ttl_days),
     })
 
 
-async def create_job(job_id: str, url: str, job_cache_key: str) -> None:
+async def create_job(job_id: str, url: str, job_cache_key: str, job_type: str = "mutual_connections") -> None:
     db = _get_db()
     now = datetime.now(timezone.utc)
     await db.collection(settings.jobs_collection).document(job_id).set({
         "job_id": job_id,
-        "job_type": "mutual_connections",
+        "job_type": job_type,
         "url": url,
         "status": "pending",
         "created_at": now,
