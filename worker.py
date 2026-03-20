@@ -29,6 +29,7 @@ from google.cloud import firestore, pubsub_v1
 from google.api_core.exceptions import DeadlineExceeded
 
 from api.config import settings
+from api import slack
 
 # Heavy scraper deps (browser_use, playwright, Gemini) are NOT imported here.
 # They are lazy-loaded the first time a job actually arrives, so the worker
@@ -62,6 +63,7 @@ SCRAPE_MAX_STEPS   = 60
 ACK_EXTEND_EVERY   = 60   # seconds between ack deadline extensions
 ACK_EXTEND_TO      = 300  # extend deadline to this many seconds each time
 PULL_TIMEOUT       = 30   # seconds to wait for a message before looping
+MAX_DELIVERY_ATTEMPTS = 5  # must match --max-delivery-attempts set on subscription
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -196,7 +198,30 @@ def run() -> None:
         job_id = data.get("job_id", "unknown")
         url = data.get("url", "")
         job_type = data.get("job_type", "mutual_connections")
-        log.info(f"Received job {job_id}  type={job_type}")
+        delivery_attempt = msg.delivery_attempt or 0
+        log.info(f"Received job {job_id}  type={job_type}  attempt={delivery_attempt}")
+
+        # Dead letter guard: if this is the final attempt, mark dead + alert,
+        # then ack so Pub/Sub moves it to the dead letter topic cleanly.
+        if delivery_attempt >= MAX_DELIVERY_ATTEMPTS:
+            log.error(f"Job {job_id} reached max delivery attempts — marking dead")
+            try:
+                db.collection(settings.jobs_collection).document(job_id).update({
+                    "status": "dead",
+                    "finished_at": _now(),
+                    "error": f"Exhausted {MAX_DELIVERY_ATTEMPTS} delivery attempts",
+                })
+            except Exception:
+                pass
+            slack.send(
+                f":skull: *Job dead* after {MAX_DELIVERY_ATTEMPTS} attempts\n"
+                f"job_id: `{job_id}`\nurl: {url}\n"
+                f"Check Firestore for last error."
+            )
+            subscriber.acknowledge(
+                request={"subscription": subscription_path, "ack_ids": [ack_id]}
+            )
+            continue
 
         # Start background thread to keep ack alive during scraping
         stop_event = threading.Event()
@@ -213,15 +238,20 @@ def run() -> None:
             success = True
         except Exception as e:
             log.error(f"Job {job_id} failed: {e}")
-            # Update Firestore with failure
             try:
                 db.collection(settings.jobs_collection).document(job_id).update({
                     "status": "failed",
                     "finished_at": _now(),
                     "error": str(e),
+                    "delivery_attempt": delivery_attempt,
                 })
             except Exception:
                 pass
+            slack.send(
+                f":warning: *Job failed* (attempt {delivery_attempt}/{MAX_DELIVERY_ATTEMPTS})\n"
+                f"job_id: `{job_id}`\nurl: {url}\n"
+                f"worker: `{WORKER_HOST}`\nerror: {str(e)[:200]}"
+            )
         finally:
             stop_event.set()
 
