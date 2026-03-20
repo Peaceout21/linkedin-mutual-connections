@@ -68,7 +68,8 @@ if [[ ! -f "$REPO_DIR/.env" ]]; then
 fi
 
 # Prompt for WORKER_NAME if still placeholder or missing
-source <(grep -E '^(WORKER_NAME|NGROK_AUTHTOKEN|NGROK_DOMAIN)=' "$REPO_DIR/.env" 2>/dev/null || true)
+WORKER_NAME=""
+source <(grep -E '^WORKER_NAME=' "$REPO_DIR/.env" 2>/dev/null || true)
 if [[ -z "$WORKER_NAME" || "$WORKER_NAME" == "your-name-here" ]]; then
     read -r -p "  Enter a unique name for this machine (e.g. arjun-mbp): " INPUT_NAME
     INPUT_NAME="${INPUT_NAME:-$(whoami)-mac}"
