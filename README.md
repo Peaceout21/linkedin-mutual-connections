@@ -58,7 +58,25 @@ pending → running → completed
 
 ---
 
-## New contributor setup
+## New contributor setup (Mac)
+
+Total time: ~15 minutes. Follow these steps in order.
+
+### 1. Install prerequisites (if not already)
+
+```bash
+# Homebrew
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Python 3.13
+brew install python@3.13
+
+# gcloud CLI
+brew install --cask google-cloud-sdk
+gcloud init   # sign in with your Google account, select project: chromatic-being-375320
+```
+
+### 2. Clone and run setup
 
 ```bash
 git clone https://github.com/Peaceout21/linkedin-mutual-connections
@@ -66,26 +84,69 @@ cd linkedin-mutual-connections
 bash setup.sh
 ```
 
-`setup.sh` handles everything:
-1. Python 3.11+ check
-2. Creates `venv` + installs all dependencies
-3. Installs Playwright Chromium
-4. Creates `.env` from `.env.example` and prompts for your `WORKER_NAME`
-5. Checks gcloud ADC — tells you exactly what to run if missing
-6. Offers to run `save_cookies.py` right away
-7. Installs and starts the launchd worker (auto-starts on login, runs in background)
+When prompted:
+- Enter your `WORKER_NAME` — something like `sarah-mbp` (must be unique across the team)
+- Say **N** when asked about LinkedIn cookies (you'll do that in step 4)
 
-After setup, fill in `.env`:
+### 3. Fill in `.env`
+
+```bash
+nano .env
+```
+
+Set these two values — everything else is already correct, don't change it:
 
 ```env
-GOOGLE_API_KEY=...       # from aistudio.google.com/apikey
-WORKER_NAME=your-name    # e.g. arjun-mbp — must be unique across team
+GOOGLE_API_KEY=    # get a free key from aistudio.google.com/apikey
+WORKER_NAME=       # already set by setup.sh — confirm it's your name
 ```
 
-Then authenticate with GCP (one-time):
+### 4. GCP access
+
 ```bash
 gcloud auth application-default login
+# browser opens → sign in with your Google account
 ```
+
+Then **ask Arjun to run this once with your email** (he does this, not you):
+
+```bash
+gcloud projects add-iam-policy-binding chromatic-being-375320 \
+  --member="user:YOUR_EMAIL" --role="roles/pubsub.subscriber" --project=chromatic-being-375320
+
+gcloud projects add-iam-policy-binding chromatic-being-375320 \
+  --member="user:YOUR_EMAIL" --role="roles/datastore.user" --project=chromatic-being-375320
+```
+
+### 5. Save your LinkedIn session
+
+```bash
+make cookies
+# Chromium opens → log into LinkedIn → come back to terminal → press Enter
+```
+
+### 6. Verify everything works
+
+```bash
+# Check worker is running
+make worker-status
+# → should show: com.frontier.linkedin-worker   <PID>
+
+# Watch live logs
+make worker-logs
+# → should show: "LinkedIn Worker starting" and "Host: your-name-mbp"
+
+# Submit a test job
+curl -X POST https://linkedin-api-461238503904.us-central1.run.app/jobs \
+  -H "X-API-Key: 865e19fb621255a32cda286c842e006d11922a0b3aacd5f577cc87d5feca65cf" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.linkedin.com/in/gregghill17"}'
+# → returns {"job_id": "...", "status": "pending"}
+```
+
+Within ~30 seconds your worker picks up the job — you'll see it in `make worker-logs`.
+
+The worker auto-starts on every login from here on. You're done.
 
 ---
 
