@@ -68,8 +68,7 @@ if [[ ! -f "$REPO_DIR/.env" ]]; then
 fi
 
 # Prompt for WORKER_NAME if still placeholder or missing
-WORKER_NAME=""
-source <(grep -E '^WORKER_NAME=' "$REPO_DIR/.env" 2>/dev/null || true)
+WORKER_NAME=$(grep -E '^WORKER_NAME=' "$REPO_DIR/.env" 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'" || true)
 if [[ -z "$WORKER_NAME" || "$WORKER_NAME" == "your-name-here" ]]; then
     read -r -p "  Enter a unique name for this machine (e.g. arjun-mbp): " INPUT_NAME
     INPUT_NAME="${INPUT_NAME:-$(whoami)-mac}"
@@ -104,7 +103,7 @@ if [[ -f "$REPO_DIR/linkedin_storage.json" ]]; then
 else
     yellow "  No session file found."
     read -r -p "  Set up LinkedIn cookies now? (y/N): " REPLY
-    if [[ "${REPLY,,}" == "y" ]]; then
+    if [[ "$REPLY" == "y" || "$REPLY" == "Y" ]]; then
         "$PY" "$REPO_DIR/save_cookies.py"
     else
         yellow "  Skipping. Run 'make cookies' when ready."
