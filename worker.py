@@ -16,9 +16,12 @@ import asyncio
 import json
 import logging
 import os
+import socket
 import threading
 import time
 from datetime import datetime, timezone
+
+WORKER_HOST = socket.gethostname()
 
 from google.cloud import firestore, pubsub_v1
 from google.api_core.exceptions import DeadlineExceeded
@@ -110,7 +113,7 @@ async def _process(job_id: str, url: str, job_type: str, db: firestore.Client) -
         return
 
     log.info(f"Starting job {job_id}  type={job_type}  url={url}")
-    job_ref.update({"status": "running", "started_at": _now()})
+    job_ref.update({"status": "running", "started_at": _now(), "worker_host": WORKER_HOST})
 
     scraper = _load_scraper(job_type)
     # company_people scraper needs more steps (more employees to scroll through)
@@ -152,6 +155,7 @@ def run() -> None:
 
     log.info("=" * 60)
     log.info("LinkedIn Worker starting")
+    log.info(f"  Host         : {WORKER_HOST}")
     log.info(f"  Project      : {settings.gcp_project_id}")
     log.info(f"  Subscription : {subscription_path}")
     log.info(f"  Max steps    : {SCRAPE_MAX_STEPS}")
