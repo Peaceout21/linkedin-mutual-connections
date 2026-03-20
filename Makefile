@@ -41,6 +41,15 @@ worker-logs:    ## Tail live worker output
 worker-status:  ## Show whether the worker process is running
 	launchctl list | grep linkedin-worker || echo "Worker not running"
 
+# ── ngrok ─────────────────────────────────────────────────────────────────────
+.PHONY: ngrok
+ngrok:          ## Start ngrok tunnel (exposes local API publicly)
+	ngrok start linkedin-api
+
+.PHONY: ngrok-setup
+ngrok-setup:    ## Regenerate ~/.config/ngrok/ngrok.yml from .env
+	@bash -c 'source .env && mkdir -p ~/.config/ngrok && cat > ~/.config/ngrok/ngrok.yml <<EOF\nversion: "3"\nagent:\n  authtoken: $$NGROK_AUTHTOKEN\n\ntunnels:\n  linkedin-api:\n    proto: http\n    addr: 8080\n    domain: $$NGROK_DOMAIN\nEOF' && echo "ngrok config written"
+
 # ── Help ──────────────────────────────────────────────────────────────────────
 .PHONY: help
 help:

@@ -21,7 +21,9 @@ import threading
 import time
 from datetime import datetime, timezone
 
-WORKER_HOST = socket.gethostname()
+# Use WORKER_NAME from .env if set (recommended — hostnames are not unique).
+# Falls back to system hostname only if unset.
+WORKER_HOST = os.getenv("WORKER_NAME") or socket.gethostname()
 
 from google.cloud import firestore, pubsub_v1
 from google.api_core.exceptions import DeadlineExceeded

@@ -65,10 +65,22 @@ step "Checking .env"
 if [[ ! -f "$REPO_DIR/.env" ]]; then
     cp "$REPO_DIR/.env.example" "$REPO_DIR/.env"
     yellow "  Created .env from .env.example"
-    yellow "  !! Open .env and fill in your keys before continuing !!"
-else
-    green "  .env already exists — skipping"
 fi
+
+# Prompt for WORKER_NAME if still placeholder or missing
+source <(grep -E '^(WORKER_NAME|NGROK_AUTHTOKEN|NGROK_DOMAIN)=' "$REPO_DIR/.env" 2>/dev/null || true)
+if [[ -z "$WORKER_NAME" || "$WORKER_NAME" == "your-name-here" ]]; then
+    read -r -p "  Enter a unique name for this machine (e.g. arjun-mbp): " INPUT_NAME
+    INPUT_NAME="${INPUT_NAME:-$(whoami)-mac}"
+    # Write it into .env (replace or append)
+    if grep -q "^WORKER_NAME=" "$REPO_DIR/.env"; then
+        sed -i '' "s/^WORKER_NAME=.*/WORKER_NAME=$INPUT_NAME/" "$REPO_DIR/.env"
+    else
+        echo "WORKER_NAME=$INPUT_NAME" >> "$REPO_DIR/.env"
+    fi
+    WORKER_NAME="$INPUT_NAME"
+fi
+green "  Worker name: $WORKER_NAME"
 
 # ── 6. gcloud ADC ─────────────────────────────────────────────────────────────
 step "Checking Google Cloud credentials"
@@ -98,7 +110,35 @@ else
     fi
 fi
 
-# ── 8. launchd worker agent ───────────────────────────────────────────────────
+# ── 8. ngrok config ───────────────────────────────────────────────────────────
+step "Setting up ngrok"
+NGROK_CFG_DIR="$HOME/.config/ngrok"
+NGROK_CFG="$NGROK_CFG_DIR/ngrok.yml"
+
+# Re-read from .env in case it was just created
+source <(grep -E '^(NGROK_AUTHTOKEN|NGROK_DOMAIN)=' "$REPO_DIR/.env" 2>/dev/null || true)
+
+if [[ -z "$NGROK_AUTHTOKEN" || "$NGROK_AUTHTOKEN" == "your_ngrok_authtoken_here" ]]; then
+    yellow "  NGROK_AUTHTOKEN not set in .env — skipping ngrok config."
+    yellow "  Add it later and re-run setup.sh, or run: make ngrok-setup"
+else
+    mkdir -p "$NGROK_CFG_DIR"
+    cat > "$NGROK_CFG" <<NGROK
+version: "3"
+agent:
+  authtoken: $NGROK_AUTHTOKEN
+
+tunnels:
+  linkedin-api:
+    proto: http
+    addr: 8080
+    domain: $NGROK_DOMAIN
+NGROK
+    green "  ngrok config written to $NGROK_CFG"
+    green "  Start tunnel with: make ngrok"
+fi
+
+# ── 9. launchd worker agent ───────────────────────────────────────────────────
 step "Setting up launchd worker (auto-start on login)"
 mkdir -p "$HOME/Library/LaunchAgents"
 
