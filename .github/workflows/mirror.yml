@@ -1,0 +1,19 @@
+name: Mirror to frontier-ventures
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["**"]
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history, all branches
+
+      - name: Push to frontier-ventures
+        run: |
+          git remote add frontier https://x-access-token:${{ secrets.FRONTIER_MIRROR_TOKEN }}@github.com/frontier-ventures/linkedin-mutual-connections.git
+          git push frontier --mirror
