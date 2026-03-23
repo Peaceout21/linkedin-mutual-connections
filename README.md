@@ -182,50 +182,110 @@ curl -X POST https://linkedin-api-461238503904.us-central1.run.app/admin/session
 
 ## API usage
 
-All requests require `X-API-Key` header.
+**Base URL:** `https://linkedin-api-461238503904.us-central1.run.app`
+**Auth:** every request needs the header `X-API-Key: 865e19fb621255a32cda286c842e006d11922a0b3aacd5f577cc87d5feca65cf`
 
-### Submit a job
+---
 
-**Person (mutual connections):**
-```bash
-curl -X POST https://linkedin-api-461238503904.us-central1.run.app/jobs \
-  -H "X-API-Key: YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://www.linkedin.com/in/someprofile"}'
+### From Zapier (or Make / any no-code tool)
+
+The flow is always two steps: **trigger a scrape → poll for the result.**
+
+#### Step 1 — Submit the job (POST /jobs)
+
+Set up a Zapier "Webhooks by Zapier" action:
+
+| Field | Value |
+|---|---|
+| Method | `POST` |
+| URL | `https://linkedin-api-461238503904.us-central1.run.app/jobs` |
+| Headers | `X-API-Key: 865e19fb621255a32cda286c842e006d11922a0b3aacd5f577cc87d5feca65cf` |
+| Content-Type | `application/json` |
+
+**Body for a person (mutual connections):**
+```json
+{
+  "url": "https://www.linkedin.com/in/someprofile",
+  "job_type": "mutual_connections"
+}
 ```
 
-**Company (employee connections):**
-```bash
-curl -X POST https://linkedin-api-461238503904.us-central1.run.app/jobs \
-  -H "X-API-Key: YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://www.linkedin.com/company/acme", "job_type": "company_people"}'
+**Body for a company:**
+```json
+{
+  "url": "https://www.linkedin.com/company/acme",
+  "job_type": "company_people"
+}
 ```
 
-Returns immediately with `job_id` and `status: pending`.
-
-### Poll for result
-
-```bash
-curl https://linkedin-api-461238503904.us-central1.run.app/jobs/JOB_ID \
-  -H "X-API-Key: YOUR_KEY"
+**For a large company (200+ employees), add max_steps:**
+```json
+{
+  "url": "https://www.linkedin.com/company/bigcorp",
+  "job_type": "company_people",
+  "max_steps": 80
+}
 ```
 
-`status` will be `pending` → `running` → `completed` (or `failed` / `dead`).
+The response comes back **immediately** (the scrape hasn't run yet):
+```json
+{
+  "job_id": "3f2a1b4c-...",
+  "status": "pending",
+  "message": "Job queued."
+}
+```
+Save the `job_id` — you need it in step 2.
 
-### List all jobs
+> If the URL was scraped within the last 90 days, `status` comes back as `cached`
+> and `result` is already in the response — no need to poll.
 
-```bash
-curl "https://linkedin-api-461238503904.us-central1.run.app/jobs?status=completed" \
-  -H "X-API-Key: YOUR_KEY"
+---
+
+#### Step 2 — Poll for the result (GET /jobs/:job_id)
+
+Add a second Zapier "Webhooks by Zapier" action (or use a delay + poll loop):
+
+| Field | Value |
+|---|---|
+| Method | `GET` |
+| URL | `https://linkedin-api-461238503904.us-central1.run.app/jobs/{{job_id}}` |
+| Headers | `X-API-Key: 865e19fb621255a32cda286c842e006d11922a0b3aacd5f577cc87d5feca65cf` |
+
+Response when done:
+```json
+{
+  "job_id": "3f2a1b4c-...",
+  "status": "completed",
+  "result": { ... }
+}
 ```
 
-### Force re-scrape (bypass 90-day cache)
+`status` moves through: `pending` → `running` → `completed`
+(or `failed` / `dead` if something went wrong — see Dead letter queue section)
+
+Typical scrape time: **2–5 minutes** for a profile, **5–10 minutes** for a company.
+Set your Zapier delay/poll interval accordingly.
+
+---
+
+### Full request reference
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `url` | string | required | LinkedIn profile (`/in/`) or company (`/company/`) URL |
+| `job_type` | string | `mutual_connections` | `mutual_connections` or `company_people` |
+| `max_steps` | int | `40` | Agent steps budget. Use `60-80` for companies, `120` for large ones |
+| `force_refresh` | bool | `false` | Skip cache and re-scrape even if result exists |
+
+### Other endpoints
 
 ```bash
-curl -X POST .../jobs \
-  -H "X-API-Key: YOUR_KEY" \
-  -d '{"url": "...", "force_refresh": true}'
+# List all jobs (optionally filter by status)
+GET /jobs?status=completed
+
+# Evict a cached result (forces re-scrape next time)
+DELETE /cache?url=https://www.linkedin.com/in/someprofile
 ```
 
 ---
