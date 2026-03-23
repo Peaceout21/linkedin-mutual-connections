@@ -59,7 +59,7 @@ async def write_cache(key: str, url: str, result: dict[str, Any], ttl_days: int,
     })
 
 
-async def create_job(job_id: str, url: str, job_cache_key: str, job_type: str = "mutual_connections") -> None:
+async def create_job(job_id: str, url: str, job_cache_key: str, job_type: str = "mutual_connections", max_steps: int = 60) -> None:
     db = _get_db()
     now = datetime.now(timezone.utc)
     await db.collection(settings.jobs_collection).document(job_id).set({
@@ -73,6 +73,7 @@ async def create_job(job_id: str, url: str, job_cache_key: str, job_type: str = 
         "result": None,
         "error": None,
         "cache_key": job_cache_key,
+        "max_steps": max_steps,
     })
 
 

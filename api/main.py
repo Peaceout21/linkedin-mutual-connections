@@ -68,8 +68,8 @@ async def create_job(req: JobRequest, _: str = Depends(require_api_key)):
             )
 
     job_id = str(uuid.uuid4())
-    await store.create_job(job_id=job_id, url=req.url, job_cache_key=ck, job_type=req.job_type)
-    publish_job(settings.gcp_project_id, settings.pubsub_topic, job_id, req.url, job_type=req.job_type)
+    await store.create_job(job_id=job_id, url=req.url, job_cache_key=ck, job_type=req.job_type, max_steps=req.max_steps)
+    publish_job(settings.gcp_project_id, settings.pubsub_topic, job_id, req.url, job_type=req.job_type, max_steps=req.max_steps)
 
     return JobResponse(job_id=job_id, status="pending", message="Job queued.")
 

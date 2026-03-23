@@ -107,7 +107,7 @@ def _extend_ack_loop(
 
 # ── Job processor ─────────────────────────────────────────────────────────────
 
-async def _process(job_id: str, url: str, job_type: str, db: firestore.Client) -> None:
+async def _process(job_id: str, url: str, job_type: str, max_steps: int, db: firestore.Client) -> None:
     job_ref = db.collection(settings.jobs_collection).document(job_id)
 
     # Guard: skip if already completed (duplicate delivery)
@@ -120,8 +120,6 @@ async def _process(job_id: str, url: str, job_type: str, db: firestore.Client) -
     job_ref.update({"status": "running", "started_at": _now(), "worker_host": WORKER_HOST})
 
     scraper = _load_scraper(job_type)
-    # company_people scraper needs more steps (more employees to scroll through)
-    max_steps = SCRAPE_MAX_STEPS if job_type == "mutual_connections" else max(SCRAPE_MAX_STEPS, 80)
     result = await scraper(url, max_steps=max_steps)
 
     # Write cache (90-day TTL)
@@ -198,8 +196,9 @@ def run() -> None:
         job_id = data.get("job_id", "unknown")
         url = data.get("url", "")
         job_type = data.get("job_type", "mutual_connections")
+        max_steps = int(data.get("max_steps", SCRAPE_MAX_STEPS))
         delivery_attempt = msg.delivery_attempt or 0
-        log.info(f"Received job {job_id}  type={job_type}  attempt={delivery_attempt}")
+        log.info(f"Received job {job_id}  type={job_type}  max_steps={max_steps}  attempt={delivery_attempt}")
 
         # Dead letter guard: if this is the final attempt, mark dead + alert,
         # then ack so Pub/Sub moves it to the dead letter topic cleanly.
@@ -234,7 +233,7 @@ def run() -> None:
 
         success = False
         try:
-            asyncio.run(_process(job_id, url, job_type, db))
+            asyncio.run(_process(job_id, url, job_type, max_steps, db))
             success = True
         except Exception as e:
             log.error(f"Job {job_id} failed: {e}")
