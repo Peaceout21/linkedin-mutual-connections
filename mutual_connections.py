@@ -29,6 +29,8 @@ STORAGE_FILE = "linkedin_storage.json"
 MODEL        = "gemini-3-flash-preview"
 # Set HEADLESS=false in .env to see the browser locally; VMs always run headless
 HEADLESS     = os.getenv("HEADLESS", "false").lower() != "false"
+# Delay in ms between every browser action — makes scraping look more human
+SLOW_MO      = int(os.getenv("BROWSER_SLOW_MO", "1200"))
 
 
 def find_free_port() -> int:
@@ -177,6 +179,7 @@ async def _launch_browser(storage: dict):
     pw = await async_playwright().start()
     browser = await pw.chromium.launch(
         headless=HEADLESS,
+        slow_mo=SLOW_MO,
         args=[
             f"--remote-debugging-port={port}",
             "--disable-blink-features=AutomationControlled",

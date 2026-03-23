@@ -12,7 +12,7 @@ class JobRequest(BaseModel):
     url: str
     job_type: JobType = "mutual_connections"
     force_refresh: bool = False
-    max_steps: int = 60  # 60 for mutual_connections, bump to 120 for large companies
+    max_steps: int = 40  # 40 for mutual_connections, 60-80 for company_people, 120 for large companies
 
 
 class JobResponse(BaseModel):

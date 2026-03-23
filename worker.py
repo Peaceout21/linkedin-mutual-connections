@@ -59,7 +59,7 @@ log = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-SCRAPE_MAX_STEPS   = 60
+SCRAPE_MAX_STEPS   = 40  # fallback if not specified in message
 ACK_EXTEND_EVERY   = 60   # seconds between ack deadline extensions
 ACK_EXTEND_TO      = 300  # extend deadline to this many seconds each time
 PULL_TIMEOUT       = 30   # seconds to wait for a message before looping
